@@ -23,7 +23,7 @@ class LatencyWatch(object):
 
     @property
     def std(self):
-        return np.sqrt(np.std(self.measurements) / len(self.measurements))
+        return np.sqrt(np.var(self.measurements) / len(self.measurements))
 
     def write(self, file=stderr):
         mean = self.mean
