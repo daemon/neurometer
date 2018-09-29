@@ -8,9 +8,9 @@ import torch.nn as nn
 class LinearBenchmark(object):
 
     def run(self, features_in, features_out, cuda=False, n_trials=300, burn_in=100, 
-            clear_cache_size=10000000, main=True):
+            clear_cache_size=10000000, main=True, bias=True, write_measurements=False):
         ones = torch.ones(1, features_in)
-        linear = nn.Linear(features_in, features_out)
+        linear = nn.Linear(features_in, features_out, bias=bias)
         if cuda:
             ones = ones.cuda()
             linear.cuda()
@@ -29,8 +29,11 @@ class LinearBenchmark(object):
             c = torch.zeros(clear_cache_size)
             if cuda:
                 c.cuda()
-        if main:
-            watch.write()
+        if main and write_measurements:
+            for measurement in watch.measurements:
+                print(f"{features_in},{features_out},{measurement}")
+            else:
+                watch.write()
         return watch.mean
 
     def run_sequential(self, begin_features=1, end_features=1000, step=5):

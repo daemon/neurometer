@@ -1,6 +1,7 @@
 from neurometer import LatencyWatch
 from tqdm import tqdm
 import fire
+import numpy as np
 import torch
 import torch.nn as nn
 
@@ -13,7 +14,7 @@ def config_filename(height, width, kernel_size, padding, stride, cuda):
 class Conv2dBenchmark(object):
 
     def run(self, features_in, features_out, height, width, kernel_size=3, padding=1, stride=1,
-            cuda=False, n_trials=1000, burn_in=100, clear_cache_size=10000000, main=True):
+            cuda=False, n_trials=10, burn_in=10, clear_cache=True, main=True, write_measurements=False):
         ones = torch.ones(1, features_in, height, width)
         conv2d = nn.Conv2d(features_in, features_out, kernel_size, padding=padding, stride=stride, bias=False)
         if cuda:
@@ -25,16 +26,22 @@ class Conv2dBenchmark(object):
             if cuda:
                 torch.cuda.synchronize()
             ones = ones.detach()
-        for _ in tqdm(range(n_trials)):
+        while len(watch.measurements) < 5 or watch.std / (np.sqrt(len(watch.measurements)) * watch.mean) > 0.01:
             with watch:
                 conv2d(ones)
                 if cuda:
                     torch.cuda.synchronize()
             ones = ones.detach()
-            c = torch.zeros(clear_cache_size)
-            if cuda:
-                c.cuda()
-        if main:
+            if clear_cache:
+                ones = ones.clone()
+                # conv2d = nn.Conv2d(features_in, features_out, kernel_size, padding=padding, stride=stride, bias=False)
+                if cuda:
+                    ones = ones.cuda()
+                    # conv2d.cuda()
+        if main and write_measurements:
+            for measurement in watch.measurements:
+                print(f"{features_in},{features_out},{measurement}")
+        elif main:
             watch.write()
         return watch.mean, watch.std
 
@@ -43,11 +50,12 @@ class Conv2dBenchmark(object):
             measure, std = self.run(feat, 64, 64, 64, main=False)
             print(f"{feat},{measure},{std}")
 
-    def build_table(self, begin_in=1, end_in=1, begin_out=1, end_out=20, height=28, width=28, kernel_size=5, cuda=False, padding=1, stride=1, step=10):
+    def build_table(self, begin_in=1, end_in=1, begin_out=1, end_out=20, height=28, width=28, kernel_size=5, cuda=False, padding=1, stride=1, step=50):
         with open(config_filename(height, width, kernel_size, padding, stride, cuda), "w") as f:
+            print("in,out,latency", file=f)
             for feat_in in tqdm(range(begin_in, end_in + 1 + step, step), position=0):
                 for feat_out in tqdm(range(begin_out, end_out + 1 + step, step), position=1):
-                    measure, std = self.run(feat_in, feat_out, height, width, kernel_size, padding, stride, main=False, cuda=cuda, clear_cache_size=0)
+                    measure, std = self.run(feat_in, feat_out, height, width, kernel_size, padding, stride, main=False, cuda=cuda, clear_cache=0)
                     print(f"{feat_in},{feat_out},{measure}", file=f)
 
 

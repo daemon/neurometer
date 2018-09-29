@@ -10,11 +10,12 @@ class LatencyWatch(object):
         self.measurements = []
 
     def __enter__(self):
-        self.time_a = time.time()
+        self.time_a = time.process_time()
         return self
 
     def __exit__(self, *args):
-        self.time_b = time.time()
+        # print(len(args))
+        self.time_b = time.process_time()
         self.measurements.append(self.time_b - self.time_a)
 
     @property
