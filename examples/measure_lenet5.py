@@ -15,59 +15,90 @@ import torch
 import torch.nn as nn
 
 
+fc_watch = LatencyWatch()
+conv_watch = LatencyWatch()
+watch = LatencyWatch()
+
 class LeNet5(nn.Module):
 
     def __init__(self, config):
         super().__init__()
-        convs = [nn.Conv2d(1, config.conv1.out, 5),
+        self.convs = [nn.Conv2d(1, config.conv1.out, 5),
                  nn.ReLU(), nn.MaxPool2d(2),
                  nn.Conv2d(config.conv1.out, config.conv2.out, 5),
                  nn.ReLU(), nn.MaxPool2d(2)]
-        self.convs = nn.Sequential(*convs)
-        fcs = [nn.Linear(config.conv2.out * 16, config.lin1.out), nn.ReLU(),
+        self.conv = nn.Sequential(*self.convs)
+        self.fcs = [nn.Linear(config.conv2.out * 16, config.lin1.out), nn.ReLU(),
                nn.Linear(config.lin1.out, 10)]
-        self.fcs = nn.Sequential(*fcs)
+        self.fc = nn.Sequential(*self.fcs)
 
     def forward(self, x):
-        x = self.convs(x)
-        x = x.view(x.size(0), -1)
-        return self.fcs(x)
+        with conv_watch:
+            for conv in self.convs:
+                x = conv(x)
+        with fc_watch:
+            x = x.view(x.size(0), -1)
+            for fc in self.fcs:
+                x = fc(x)
+        return x
 
 
 def make_config(conv1, conv2, lin1):
     return edict(dict(conv1=conv1, conv2=conv2, lin1=lin1))
 
 
+def plot_hist(watch, save=False, show=True, **plot_kwargs):
+    measures = np.array(watch.measurements)
+    if save:
+        np.save("measurements.npy", measures)
+    plt.hist(measures, **plot_kwargs)
+    if show:
+        plt.show()
+
+
 class LeNet5Benchmark(object):
 
-    def run(self, cuda=False, n_trials=10, burn_in=100, clear_cache=False, main=True, write_measurements=False):
+    def run(self, cuda=False, n_trials=10, burn_in=100, clear_cache=True, main=True, write_measurements=False):
+        torch.set_grad_enabled(False)
         x = torch.zeros(1, 1, 28, 28)
+        x.requires_grad = False
         conv1 = dict(out=20)
-        conv2 = dict(out=50)
+        conv2 = dict(out=100)
         lin1 = dict(out=500)
         model = LeNet5(make_config(conv1, conv2, lin1))
         model.eval()
         print(json.dumps(capture_config(model)))
+        # gc.disable()
         if cuda:
             x = x.cuda()
             model.cuda()
-        watch = LatencyWatch()
         for _ in tqdm(range(burn_in)):
             model(x)
             if cuda:
                 torch.cuda.synchronize()
             x = x.detach()
-        while len(watch.measurements) < 1000 or watch.std / (np.sqrt(len(watch.measurements)) * watch.mean) > 0.01:
-            gc.disable()
+        conv_watch.measurements = []
+        fc_watch.measurements = []
+        pbar = tqdm(total=n_trials)
+        while len(watch.measurements) < n_trials:# or watch.std / (np.sqrt(len(watch.measurements)) * watch.mean) > 0.01:
+            pbar.update(1)
             with watch:
-                # model.forward(x)
-                for _ in range(500000):
-                    pass
+                model(x)
+                # for _ in range(10000):
+                #     pass
+                if cuda:
+                    torch.cuda.synchronize()
+            if clear_cache:
+                x = torch.zeros(1, 1, 28, 28)
+                torch.set_grad_enabled(False)
+                if cuda:
+                    x = x.cuda()
         if main:
             watch.write()
-        df = pd.DataFrame(data=dict(measurements=watch.measurements))
-        np.save("measurements.npy", df)
-        df.hist(bins=500)
+        plt.hist(watch.measurements, bins=2000)
+        plt.axvline(sorted(watch.measurements)[int(0.9 * len(watch.measurements))], color="black", alpha=0.5)
+        # plt.hist(np.array(conv_watch.measurements) + np.array(fc_watch.measurements), bins=1000)
+        # plt.xlim(0)
         plt.show()
         return watch.mean, watch.std
 
