@@ -57,6 +57,7 @@ class LeNet5Conv2(nn.Module):
 class LeNet5Fc1(nn.Module):
 
     def __init__(self, config):
+        super().__init__()
         self.fcs = [nn.Linear(config.conv2_out * 16, config.lin1_out), nn.ReLU(),
             nn.Linear(config.lin1_out, 10)]
         self._fcs = nn.Sequential(*self.fcs)
@@ -65,7 +66,7 @@ class LeNet5Fc1(nn.Module):
         self.watch = LatencyWatch()
 
     def dummy_input(self):
-        return torch.zeros(1, self.conv2_out * 16, self.lin1_out)
+        return torch.zeros(1, self.conv2_out * 16)
 
     def forward(self, x):
         with self.watch:
