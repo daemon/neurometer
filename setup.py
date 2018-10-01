@@ -7,7 +7,7 @@ setuptools.setup(
     author="Ralph Tang",
     author_email="r33tang@uwaterloo.ca",
     description="Fine-grained neural network cost analysis tool",
-    install_requires=["fire"],
+    install_requires=["fire", "tqdm", "easydict", "numpy"],
     url="https://github.com/daemon/neurometer",
     packages=setuptools.find_packages(),
     classifiers=(
