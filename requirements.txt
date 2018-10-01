@@ -1,2 +1,3 @@
+easydict
 fire
 numpy
