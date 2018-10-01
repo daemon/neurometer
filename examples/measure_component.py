@@ -26,6 +26,9 @@ class LeNet5Conv1(nn.Module):
         self._convs = nn.Sequential(*self.convs)
         self.watch = LatencyWatch()
 
+    def dummy_input(self):
+        return torch.zeros(1,1,28,28)
+
     def forward(self, x):
         with self.watch:
             for conv in self.convs:
