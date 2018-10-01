@@ -2,6 +2,7 @@ import gc
 import random
 
 from easydict import EasyDict as edict
+from matplotlib.lines import Line2D
 from mpl_toolkits.mplot3d import Axes3D
 from scipy import stats
 from tqdm import tqdm
@@ -17,6 +18,33 @@ import torch.nn.functional as F
 from neurometer import LatencyWatch, GridSearch
 
 
+class LeNet5(nn.Module):
+
+    def __init__(self, config):
+        super().__init__()
+        self.convs = [nn.Conv2d(1, config.conv1_out, 5),
+            nn.ReLU(), nn.MaxPool2d(2),
+            nn.Conv2d(config.conv1_out, config.conv2_out, 5),
+            nn.ReLU(), nn.MaxPool2d(2)]
+        self._convs = nn.Sequential(*self.convs)
+        self.fcs = [nn.Linear(config.conv2_out * 16, config.lin1_out), nn.ReLU(),
+            nn.Linear(config.lin1_out, 10)]
+        self._fcs = nn.Sequential(*self.fcs)
+        self.watch = LatencyWatch()
+
+    def dummy_input(self):
+        return torch.zeros(1, 1, 28, 28)
+
+    def forward(self, x):
+        with self.watch:
+            for conv in self.convs:
+                x = conv(x)
+            x = x.view(x.size(0), -1)
+            for fc in self.fcs:
+                x = fc(x)
+        return x
+
+
 class LeNet5Conv1(nn.Module):
 
     def __init__(self, config):
@@ -27,7 +55,7 @@ class LeNet5Conv1(nn.Module):
         self.watch = LatencyWatch()
 
     def dummy_input(self):
-        return torch.zeros(1,1,28,28)
+        return torch.zeros(1, 1, 28, 28)
 
     def forward(self, x):
         with self.watch:
@@ -144,21 +172,26 @@ class MeasureComponentBenchmark(object):
         sns.violinplot(x=df["conv1_out"], y=df["measurements"])
         plt.show()
 
-    def plot3d(self, filename):
-        df = pd.read_csv(filename)
+    def plot3d(self, *filenames, title="", legend_names=[]):
         fig = plt.figure()
         ax = fig.add_subplot(111, projection="3d")
-        
-        df90 = df.groupby(["conv1_out", "conv2_out"]).quantile(0.8).reset_index()
-        x, y = df90["conv1_out"], df90["conv2_out"]
-        ax.scatter(x, y, df90["measurements"])
-
-        df50 = df.groupby(["conv1_out", "conv2_out"]).quantile(0.5).reset_index()
-        ax.scatter(x, y, df50["measurements"], color="red")
+        colors = ["red", "blue", "green", "orange", "purple", "black"]
+        for idx, filename in enumerate(filenames):
+            df = pd.read_csv(filename)
+            df50 = df.groupby(["conv1_out", "conv2_out"]).quantile(0.75).reset_index()
+            x, y = df50["conv1_out"], df50["conv2_out"]
+            ax.scatter(x, y, df50["measurements"], color=colors[idx % len(colors)])
+        if title:
+            plt.title(title)
+        if legend_names:
+            legend_elements = []
+            for idx, name in enumerate(legend_names):
+                legend_elements.append(Line2D([0], [0], color=colors[idx % len(colors)], lw=4, label=name))
+            ax.legend(handles=legend_elements)
         plt.show()
 
 
-components = dict(lenet5_conv1=LeNet5Conv1, lenet5_conv2=LeNet5Conv2, lenet5_fc1=LeNet5Fc1)
+components = dict(lenet5_conv1=LeNet5Conv1, lenet5_conv2=LeNet5Conv2, lenet5_fc1=LeNet5Fc1, lenet5=LeNet5)
 
 if __name__ == "__main__":
     fire.Fire(MeasureComponentBenchmark)
