@@ -106,6 +106,32 @@ class LeNet5Fc1(nn.Module):
         return x
 
 
+class BasicBlock(nn.Module):
+
+    def __init__(self, config):
+        super().__init__()
+        self.in_planes = in_planes = config.in_planes
+        out_planes = config.out_planes
+        stride = config.stride
+        self.watch = LatencyWatch()
+        self.height = config.height
+        self.width = config.width
+        self.bn1 = nn.BatchNorm2d(in_planes)
+        self.conv1 = nn.Conv2d(in_planes, out_planes, kernel_size=3, stride=1, padding=1, bias=False)
+        self.bn2 = nn.BatchNorm2d(out_planes)
+        self.conv2 = nn.Conv2d(out_planes, out_planes, kernel_size=3, stride=stride, padding=1, bias=False)
+        self.convShortcut = nn.Conv2d(in_planes, out_planes, kernel_size=1, stride=stride, padding=0, bias=False)
+
+    def dummy_input(self):
+        return torch.zeros(1, self.in_planes, self.height, self.width)
+
+    def forward(self, x):
+        with self.watch:
+            out = self.conv1(x)
+            out = self.conv2(F.relu(self.bn2(out)))
+        return out
+
+
 class MeasureComponentBenchmark(object):
 
     def run(self, component_name, cuda=False, n_trials=100, burn_in=10, clear_cache=True, main=True, input_size=tuple(), **component_kwargs):
@@ -150,6 +176,7 @@ class MeasureComponentBenchmark(object):
                 for key, range_ in ranges.items():
                     sample[key] = rand.randint(*range_)
                     cols[key] = [sample[key]] * n_trials
+                sample.update(component_kwargs)
                 cols["measurements"] = self.run(component_name, cuda=cuda, n_trials=n_trials + 20, main=False, input_size=input_size, **sample)[20:]
                 frames.append(pd.DataFrame(cols))
                 if idx % 100 == 0:
@@ -159,6 +186,7 @@ class MeasureComponentBenchmark(object):
             for idx, args in enumerate(grid_iter):
                 comp_args = {k: v for k, v in zip(grid_keys, args)}
                 cols = comp_args.copy()
+                comp_args.update(component_kwargs)
                 cols["measurements"] = self.run(component_name, cuda=cuda, n_trials=n_trials + 20, main=False, input_size=input_size, **comp_args)[20:]
                 frames.append(pd.DataFrame(cols))
                 if idx % 100 == 0:
@@ -191,7 +219,7 @@ class MeasureComponentBenchmark(object):
         plt.show()
 
 
-components = dict(lenet5_conv1=LeNet5Conv1, lenet5_conv2=LeNet5Conv2, lenet5_fc1=LeNet5Fc1, lenet5=LeNet5)
+components = dict(lenet5_conv1=LeNet5Conv1, lenet5_conv2=LeNet5Conv2, lenet5_fc1=LeNet5Fc1, lenet5=LeNet5, wrn_block=BasicBlock)
 
 if __name__ == "__main__":
     fire.Fire(MeasureComponentBenchmark)

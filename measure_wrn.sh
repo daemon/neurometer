@@ -1,0 +1,5 @@
+chrt --rr 1 taskset -c 5 python -m examples.measure_component build_table wrn_block --ranges '{in_planes:[1,177,16],out_planes:[1,337,16]}' --method grid --n_trials 200 --output_file wrn1_st1.csv --width 32 --height 32 --stride 1
+chrt --rr 1 taskset -c 5 python -m examples.measure_component build_table wrn_block --ranges '{in_planes:[1,337,16],out_planes:[1,337,16]}' --method grid --n_trials 200 --output_file wrn2_st2.csv --width 32 --height 32 --stride 2
+chrt --rr 1 taskset -c 5 python -m examples.measure_component build_table wrn_block --ranges '{in_planes:[1,337,16],out_planes:[1,657,16]}' --method grid --n_trials 200 --output_file wrn2_st1.csv --width 16 --height 16 --stride 1
+chrt --rr 1 taskset -c 5 python -m examples.measure_component build_table wrn_block --ranges '{in_planes:[1,657,16],out_planes:[1,657,16]}' --method grid --n_trials 200 --output_file wrn3_st2.csv --width 16 --height 16 --stride 2
+chrt --rr 1 taskset -c 5 python -m examples.measure_component build_table wrn_block --ranges '{in_planes:[1,657,16],out_planes:[1,657,16]}' --method grid --n_trials 200 --output_file wrn3_st1.csv --width 8 --height 8 --stride 1
