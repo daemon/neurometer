@@ -1,3 +1,5 @@
+from __future__ import print_function
+
 import gc
 import json
 import os
@@ -105,7 +107,8 @@ class LeNet5Benchmark(object):
     def run_sequential(self, begin_features=1, end_features=1000, step=1):
         for feat in tqdm(range(begin_features, end_features + 1, step), position=0):
             measure, std = self.run(feat, 64, 64, 64, main=False)
-            print(f"{feat},{measure},{std}")
+            #print(f"{feat},{measure},{std}")
+            print(','.join([str(feat),str(measure),str(std)]))
 
     def build_table(self, begin_in=1, end_in=1, begin_out=1, end_out=20, height=28, width=28, kernel_size=5, cuda=False, padding=1, stride=1, step=50):
         with open(config_filename(height, width, kernel_size, padding, stride, cuda), "w") as f:
@@ -113,8 +116,8 @@ class LeNet5Benchmark(object):
             for feat_in in tqdm(range(begin_in, end_in + 1 + step, step), position=0):
                 for feat_out in tqdm(range(begin_out, end_out + 1 + step, step), position=1):
                     measure, std = self.run(feat_in, feat_out, height, width, kernel_size, padding, stride, main=False, cuda=cuda, clear_cache=0)
-                    print(f"{feat_in},{feat_out},{measure}", file=f)
-
+                    #print(f"{feat_in},{feat_out},{measure}", file=f)
+                    print(','.join([str(feat_in), str(feat_out), str(measure)]), file = f)
 
 if __name__ == "__main__":
     fire.Fire(LeNet5Benchmark)

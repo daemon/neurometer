@@ -10,11 +10,11 @@ class LatencyWatch(object):
         self.measurements = []
 
     def __enter__(self):
-        self.time_a = time.perf_counter()
+        self.time_a = time.time()
         return self
 
     def __exit__(self, *args):
-        self.time_b = time.perf_counter()
+        self.time_b = time.time()
         self.measurements.append(self.time_b - self.time_a)
 
     @property
@@ -29,7 +29,8 @@ class LatencyWatch(object):
         mean = self.mean
         std = self.std
         n = len(self.measurements)
-        print(f"Latency stats: {mean * 1000} +/- {std * 1000}ms (n={n})")
+        print("Latency stats: " + str(mean*1000) + " +/- " + str(std*1000) + "ms (n=" + str(n)+")"  )
+        #print(f"Latency stats: {mean * 1000} +/- {std * 1000}ms (n={n})")
 
 
 class GridSearch(object):
@@ -66,3 +67,5 @@ class GridSearch(object):
             self.indices[0] = 1
             self.stop_next = self._update(1)
         return result
+    def next(self):
+            return self.__next__()
