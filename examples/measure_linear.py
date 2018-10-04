@@ -1,3 +1,5 @@
+from __future__ import print_function
+
 from neurometer import LatencyWatch
 from tqdm import tqdm
 import fire
@@ -31,7 +33,8 @@ class LinearBenchmark(object):
                 c.cuda()
         if main and write_measurements:
             for measurement in watch.measurements:
-                print(f"{features_in},{features_out},{measurement}")
+                #print(f"{features_in},{features_out},{measurement}")
+                print(','.join([str(features_in), str(features_out), str(measurements)]))
             else:
                 watch.write()
         return watch.mean
@@ -40,15 +43,19 @@ class LinearBenchmark(object):
         pbar = tqdm(range(begin_features, end_features + 1, step), position=0)
         for feat in pbar:
             measure = self.run(feat, 1000, main=False)
-            print(f"{feat},{measure}")
+            #print(f"{feat},{measure}")
+            print(','.join([str(feat),str(measure)]))
             pbar.set_postfix(dict(measure=measure * 1000))
 
     def build_table(self, begin_in=1, end_in=500, begin_out=10, end_out=10):
         for feat_in in tqdm(range(begin_in, end_in + 1), position=0):
             for feat_out in tqdm(range(begin_out, end_out + 1), position=1):
                 measure = self.run(feat_in, feat_out, main=False, clear_cache_size=0)
-                print(f"{feat_in},{feat_out},{measure}")
+                #print(f"{feat_in},{feat_out},{measure}")
+                print(','.join([str(feat_in), str(feat_out), str(measure)]))
 
 
 if __name__ == "__main__":
-    fire.Fire(LinearBenchmark)
+    #fire.Fire(LinearBenchmark)
+    pass
+

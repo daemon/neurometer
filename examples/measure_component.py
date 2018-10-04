@@ -14,14 +14,14 @@ import seaborn as sns
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-
+from torch.autograd import Variable
 from neurometer import LatencyWatch, GridSearch
 
 
 class LeNet5(nn.Module):
 
     def __init__(self, config):
-        super().__init__()
+        super(LeNet5,self).__init__()
         self.convs = [nn.Conv2d(1, config.conv1_out, 5),
             nn.ReLU(), nn.MaxPool2d(2),
             nn.Conv2d(config.conv1_out, config.conv2_out, 5),
@@ -48,7 +48,7 @@ class LeNet5(nn.Module):
 class LeNet5Conv1(nn.Module):
 
     def __init__(self, config):
-        super().__init__()
+        super(LeNet5Conv1,self).__init__()
         self.convs = [nn.Conv2d(1, config.conv1_out, 5),
                  nn.ReLU(), nn.MaxPool2d(2)]
         self._convs = nn.Sequential(*self.convs)
@@ -67,7 +67,7 @@ class LeNet5Conv1(nn.Module):
 class LeNet5Conv2(nn.Module):
 
     def __init__(self, config):
-        super().__init__()
+        super(LeNet5Conv2, self).__init__()
         self.convs = [nn.Conv2d(config.conv1_out, config.conv2_out, 5),
             nn.ReLU(), nn.MaxPool2d(2)]
         self._convs = nn.Sequential(*self.convs)
@@ -88,7 +88,7 @@ class LeNet5Conv2(nn.Module):
 class LeNet5Fc1(nn.Module):
 
     def __init__(self, config):
-        super().__init__()
+        super(LeNet5Fc1,self).__init__()
         self.fcs = [nn.Linear(config.conv2_out * 16, config.lin1_out), nn.ReLU(),
             nn.Linear(config.lin1_out, 10)]
         self._fcs = nn.Sequential(*self.fcs)
@@ -143,12 +143,12 @@ class MeasureComponentBenchmark(object):
             x = x.cuda()
             model.cuda()
         for _ in tqdm(range(burn_in)):
-            model(x)
+            model(Variable(x,requires_grad = True))
             if cuda:
                 torch.cuda.synchronize()
         model.watch.measurements = []
         for _ in tqdm(range(n_trials), position=0):
-            model(x)
+            model(Variable(x,requires_grad = True))
             if cuda:
                 torch.cuda.synchronize()
             if clear_cache:
@@ -179,17 +179,20 @@ class MeasureComponentBenchmark(object):
                 sample.update(component_kwargs)
                 cols["measurements"] = self.run(component_name, cuda=cuda, n_trials=n_trials + 20, main=False, input_size=input_size, **sample)[20:]
                 frames.append(pd.DataFrame(cols))
-                if idx % 100 == 0:
+                if idx % 3 == 0:
                     gc.collect()
         elif method == "grid":
             pbar = tqdm(total=len(grid_iter), position=1)
+            print("AAAAAAA")
+            print(grid_iter)
+            print("BBBBBBB")
             for idx, args in enumerate(grid_iter):
                 comp_args = {k: v for k, v in zip(grid_keys, args)}
                 cols = comp_args.copy()
                 comp_args.update(component_kwargs)
                 cols["measurements"] = self.run(component_name, cuda=cuda, n_trials=n_trials + 20, main=False, input_size=input_size, **comp_args)[20:]
                 frames.append(pd.DataFrame(cols))
-                if idx % 100 == 0:
+                if idx % 3 == 0:
                     gc.collect()
                 pbar.update(1)
             pbar.close()
@@ -200,7 +203,8 @@ class MeasureComponentBenchmark(object):
         sns.violinplot(x=df["conv1_out"], y=df["measurements"])
         plt.show()
 
-    def plot3d(self, *filenames, title="", legend_names=[]):
+    #def plot3d(self, *filenames, title="", legend_names=[]):
+    def plot3d(self, title="", legend_names=[], *filenames):
         fig = plt.figure()
         ax = fig.add_subplot(111, projection="3d")
         colors = ["red", "blue", "green", "orange", "purple", "black"]
